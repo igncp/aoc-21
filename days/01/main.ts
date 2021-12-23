@@ -16,7 +16,7 @@ const firstPart = () => {
   return getIncreases(1)
 }
 
-const secondPart = async () => {
+const secondPart = () => {
   return getIncreases(3)
 }
 

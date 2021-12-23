@@ -15,7 +15,7 @@
   },
   "keywords": [],
   "author": "Ignacio Carbajo <icarbajop@gmail.com>",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@trivago/prettier-plugin-sort-imports": "^3.1.1",
     "@types/jest": "^27.0.3",
