@@ -1,0 +1,188 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/04/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">272</td><td class="">272</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">import { Observable, map, of, takeWhile } from &quot;rxjs&quot;
+
+const sideSize = 5
+
+class BingoBoard {
+  private rows: number[][] = []
+  private columns: number[][] = []
+  private lastNumber = -1
+
+  private readonly id: number
+
+  public constructor({ id, lines }: { id: BingoBoard[&quot;id&quot;]; lines: string[] }) {
+    this.id = id
+    lines.forEach((...[line, rowIndex]) =&gt; {
+      const numbers = line
+        .split(&quot; &quot;)
+        .filter((v) =&gt; !!v)
+        .map(Number)
+
+      numbers.forEach((...[numberItem, columnIndex]) =&gt; {
+        this.rows[rowIndex] = this.rows[rowIndex] || []
+        this.rows[rowIndex].push(numberItem)
+
+        this.columns[columnIndex] = this.columns[columnIndex] || []
+        this.columns[columnIndex].push(numberItem)
+      })
+    })
+  }
+
+  public getId() {
+    return this.id
+  }
+
+  public markNumber(numberItem: number) {
+    this.lastNumber = numberItem
+    this.rows = this.rows.map((row) =&gt;
+      row.filter((cell) =&gt; cell !== numberItem)
+    )
+    this.columns = this.columns.map((column) =&gt;
+      column.filter((cell) =&gt; cell !== numberItem)
+    )
+  }
+
+  public hasBingo() {
+    return (
+      this.rows.some((row) =&gt; row.length === 0) ||
+      this.columns.some((column) =&gt; column.length === 0)
+    )
+  }
+
+  public getScore() {
+    const unmarkedSum = this.columns.reduce((...[total, column]) =&gt; {
+      return (
+        total +
+        column.reduce((...[total2, cell]) =&gt; {
+          return total2 + cell
+        }, 0)
+      )
+    }, 0)
+
+    return unmarkedSum * this.lastNumber
+  }
+}
+
+type GameResult = {
+  boardIndex: number
+  numberIndex: number
+  score: number
+  winningNumber: number
+}
+
+class Bingo {
+  private readonly numbersInput$: Observable&lt;{
+    numberIndex: number
+    numberValue: number
+  }&gt;
+
+  private readonly boardsPlaying: BingoBoard[]
+  private readonly boardsFinished: BingoBoard[] = []
+  private readonly gameResults: GameResult[] = []
+
+  private constructor(opts: {
+    boards: BingoBoard[]
+    numbersInput$: Observable&lt;number&gt;
+  }) {
+    this.numbersInput$ = opts.numbersInput$.pipe(
+      map((...[numberValue, numberIndex]) =&gt; ({
+        numberIndex,
+        numberValue,
+      }))
+    )
+    this.boardsPlaying = opts.boards
+  }
+
+  public static fromFixedString(game: string) {
+    const [numbers, ...restLines] = game.trim().split(&quot;\n&quot;)
+    const boards = restLines
+      .filter((line) =&gt; !!line.trim())
+      .reduce&lt;string[][]&gt;((...[acc, line]) =&gt; {
+        const { [acc.length - 1]: lastBoard } = acc
+
+        if (!(lastBoard as unknown) || lastBoard.length === sideSize) {
+          const newBoard = [line]
+
+          acc.push(newBoard)
+        } else {
+          lastBoard.push(line)
+        }
+
+        return acc
+      }, [])
+      .map(
+        (...[boardLines, boardIndex]) =&gt;
+          new BingoBoard({
+            id: boardIndex,
+            lines: boardLines,
+          })
+      )
+
+    return new Bingo({
+      boards,
+      numbersInput$: of(
+        ...numbers
+          .split(&quot;,&quot;)
+          .filter((v) =&gt; !!v)
+          .map(Number)
+      ),
+    })
+  }
+
+  public getGameResults(): Promise&lt;GameResult[]&gt; {
+    return new Promise((resolve) =&gt; {
+      this.numbersInput$
+        .pipe(takeWhile(() =&gt; this.boardsPlaying.length !== 0))
+        .subscribe(({ numberIndex, numberValue }) =&gt; {
+          this.boardsPlaying.forEach((board) =&gt; {
+            board.markNumber(numberValue)
+          })
+
+          const winningBoards = this.boardsPlaying.filter((board) =&gt;
+            board.hasBingo()
+          )
+
+          winningBoards.forEach((winningBoard) =&gt; {
+            const boardIndex = this.boardsPlaying.findIndex(
+              (board) =&gt; board === winningBoard
+            )
+
+            this.boardsPlaying.splice(boardIndex, 1)
+            this.boardsFinished.push(winningBoard)
+
+            const gameResult: GameResult = {
+              boardIndex: winningBoard.getId(),
+              numberIndex,
+              score: winningBoard.getScore(),
+              winningNumber: numberValue,
+            }
+
+            this.gameResults.push(gameResult)
+          })
+
+          if (this.boardsPlaying.length === 0) {
+            resolve(this.gameResults)
+          }
+        })
+    })
+  }
+}
+
+export { Bingo }
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Thu, 23 Dec 2021 23:24:10 GMT</p>
+    </body>
+  </html>
+  

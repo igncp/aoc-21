@@ -11,26 +11,29 @@
 <link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
     </head>
     <body>
-    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/01/main.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">21</td><td class="">21</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">import fs from &quot;fs&quot;
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/03/main.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">25</td><td class="">25</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">import fs from &quot;fs&quot;
 
-import { OceanScanner } from &quot;./lib&quot;
+import { DiagnosticReport } from &quot;./lib&quot;
 
-const getIncreases = (groupedMeasurements: number) =&gt; {
+const prepareDiagnosticReport = async () =&gt; {
   const readStream = fs.createReadStream(`${__dirname}/input.txt`)
+  const diagnostic = new DiagnosticReport()
 
-  const oceanScanner = OceanScanner.fromReadableStream(readStream)
+  await diagnostic.consumeAllInput(readStream)
 
-  return oceanScanner.getFinalDepthIncreases({
-    groupedMeasurements,
-  })
+  return diagnostic
 }
 
-const firstPart = () =&gt; {
-  return getIncreases(1)
+const firstPart = async () =&gt; {
+  const diagnostic = await prepareDiagnosticReport()
+
+  return diagnostic.getPowerConsumption()
 }
 
-const secondPart = () =&gt; {
-  return getIncreases(3)
+const secondPart = async () =&gt; {
+  const diagnostic = await prepareDiagnosticReport()
+
+  return diagnostic.getLifeSupportRating()
 }
 
 export { firstPart, secondPart }

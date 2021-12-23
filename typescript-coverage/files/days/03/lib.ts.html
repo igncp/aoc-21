@@ -1,0 +1,166 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/03/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">189</td><td class="">189</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">import { Readable } from &quot;node:stream&quot;
+import { Observable, from, last, map, mergeMap, of } from &quot;rxjs&quot;
+
+const transformInputLines = (str: string) =&gt; {
+  return str.split(&quot;\n&quot;).filter((v) =&gt; !!v)
+}
+
+type DiagnosticLine = string
+
+class ReportCollector {
+  private readonly state = {
+    bitsDiffs: [] as number[],
+    numsList: [] as string[],
+  }
+
+  public getNumsList() {
+    return this.state.numsList.slice()
+  }
+
+  public getBitsDiffs() {
+    return this.state.bitsDiffs.slice()
+  }
+
+  public getEpsilonRate() {
+    const binaryNum = this.state.bitsDiffs
+      .map((diff) =&gt; (diff &gt; 0 ? 1 : 0))
+      .join(&quot;&quot;)
+
+    return parseInt(binaryNum, 2)
+  }
+
+  public getGammaRate() {
+    const binaryNum = this.state.bitsDiffs
+      .map((diff) =&gt; (diff &lt; 0 ? 1 : 0))
+      .join(&quot;&quot;)
+
+    return parseInt(binaryNum, 2)
+  }
+
+  public addLine(line: string) {
+    const {
+      state: { bitsDiffs, numsList },
+    } = this
+
+    numsList.push(line)
+    line.split(&quot;&quot;).forEach((...[bit, bitIndex]) =&gt; {
+      const sum = bit === &quot;1&quot; ? 1 : -1
+
+      bitsDiffs[bitIndex] = bitsDiffs[bitIndex] || 0
+      bitsDiffs[bitIndex] += sum
+    })
+  }
+}
+
+class DiagnosticReport {
+  private readonly report = new ReportCollector()
+
+  public consumeAllInput(rawInput: Readable | string) {
+    const input$ = (
+      typeof rawInput === &quot;string&quot; ? of(rawInput) : from(rawInput)
+    ).pipe(
+      mergeMap((str: Buffer | string) =&gt; {
+        return transformInputLines(str.toString())
+      })
+    )
+
+    return new Promise((resolve) =&gt; {
+      this.consumeInput(input$).pipe(last()).subscribe(resolve)
+    })
+  }
+
+  public getPowerConsumption() {
+    const epsilonRate = this.report.getEpsilonRate()
+    const gammaRate = this.report.getGammaRate()
+
+    return epsilonRate * gammaRate
+  }
+
+  public getLifeSupportRating() {
+    try {
+      const oxygenGeneratorRating = this.getOxygenGeneratorRating()
+      const co2ScrubbrerRating = this.getCO2ScrubbrerRating()
+
+      return oxygenGeneratorRating * co2ScrubbrerRating
+    } catch {
+      return -1
+    }
+  }
+
+  private extractNumByFilteringCommon(
+    conditionFn: (bitDiff: number) =&gt; &quot;0&quot; | &quot;1&quot;
+  ) {
+    let { report } = this
+
+    let loopCounter = 0
+    let bitPosition = 0
+
+    while (report.getNumsList().length !== 1) {
+      const numsList = report.getNumsList()
+      const bitsDiffs = report.getBitsDiffs()
+
+      const newNumsList = numsList.filter((numItem) =&gt; {
+        const { [bitPosition]: bit } = numItem
+
+        return bit === conditionFn(bitsDiffs[bitPosition])
+      })
+
+      report = new ReportCollector()
+
+      newNumsList.forEach((line) =&gt; {
+        report.addLine(line)
+      })
+
+      bitPosition += 1
+      loopCounter += 1
+
+      if (loopCounter &gt; 100_000) {
+        throw new Error(&quot;Infinite loop detected&quot;)
+      }
+    }
+
+    const binaryNum = report.getNumsList()[0]
+
+    return parseInt(binaryNum, 2)
+  }
+
+  private getOxygenGeneratorRating() {
+    return this.extractNumByFilteringCommon((bitDiff) =&gt; {
+      return bitDiff &gt;= 0 ? &quot;1&quot; : &quot;0&quot;
+    })
+  }
+
+  private getCO2ScrubbrerRating() {
+    return this.extractNumByFilteringCommon((bitDiff) =&gt; {
+      return bitDiff &gt;= 0 ? &quot;0&quot; : &quot;1&quot;
+    })
+  }
+
+  private consumeInput(input$: Observable&lt;DiagnosticLine&gt;) {
+    return input$.pipe(
+      map((line: DiagnosticLine) =&gt; {
+        this.report.addLine(line)
+      })
+    )
+  }
+}
+
+export { DiagnosticReport }
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Thu, 23 Dec 2021 23:24:10 GMT</p>
+    </body>
+  </html>
+  
