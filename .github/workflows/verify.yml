@@ -26,6 +26,7 @@ jobs:
 
       - name: Build 🔧
         run: |
+          npm run ts-coverage
           npm run build:gh-pages
 
       - name: Deploy 🚀
