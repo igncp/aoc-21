@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build:gh-pages": "sh ./scripts/build_ghpages.sh",
-    "check:ci": "npm run lint && npm test && npm run build:gh-pages",
+    "check:ci": "npm run lint && npm test && npm run ts-coverage && npm run build:gh-pages",
     "eslint-find-rules": "FIND_RULES=true eslint-find-rules -u ./.eslintrc.js",
     "lint": "npm run lint:ts && npm run ts-prune",
     "lint:ts": "eslint --ext .js --ext .ts --ext .tsx .",
@@ -39,6 +39,6 @@
     "typescript-coverage-report": "^0.6.1"
   },
   "typeCoverage": {
-    "atLeast": 95
+    "atLeast": 99
   }
 }
