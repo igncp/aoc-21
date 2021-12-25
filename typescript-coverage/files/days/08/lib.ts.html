@@ -1,0 +1,237 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/08/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">404</td><td class="">404</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">import { Readable } from &quot;node:stream&quot;
+import { from, last, map, mergeMap, of } from &quot;rxjs&quot;
+
+/* eslint-disable id-denylist */
+enum Segment {
+  a = &quot;a&quot;,
+  b = &quot;b&quot;,
+  c = &quot;c&quot;,
+  d = &quot;d&quot;,
+  e = &quot;e&quot;,
+  f = &quot;f&quot;,
+  g = &quot;g&quot;,
+}
+
+/* eslint-enable id-denylist */
+
+const correctDigits = {
+  0: [Segment.a, Segment.b, Segment.c, Segment.e, Segment.f, Segment.g],
+  1: [Segment.c, Segment.f],
+  2: [Segment.a, Segment.c, Segment.d, Segment.e, Segment.g],
+  3: [Segment.a, Segment.c, Segment.d, Segment.e, Segment.g],
+  4: [Segment.b, Segment.c, Segment.d, Segment.f],
+  5: [Segment.a, Segment.b, Segment.d, Segment.f, Segment.g],
+  6: [Segment.a, Segment.b, Segment.d, Segment.e, Segment.f, Segment.g],
+  7: [Segment.a, Segment.c, Segment.f],
+  8: [
+    Segment.a,
+    Segment.b,
+    Segment.c,
+    Segment.d,
+    Segment.e,
+    Segment.f,
+    Segment.g,
+  ],
+  9: [Segment.a, Segment.b, Segment.c, Segment.d, Segment.f, Segment.g],
+}
+
+const correctDigitsSegmentsNum = Object.keys(correctDigits).reduce&lt;{
+  [key: string]: number
+}&gt;((...[accObj, key]) =&gt; {
+  accObj[key] =
+    correctDigits[key as unknown as keyof typeof correctDigits].length
+
+  return accObj
+}, {})
+
+const uniqueNumbersTuples = Object.keys(correctDigitsSegmentsNum)
+  .reduce&lt;Array&lt;[string, number]&gt;&gt;((...[numbersArr, key]) =&gt; {
+    return numbersArr.concat([[key, correctDigitsSegmentsNum[key]]])
+  }, [])
+  .filter((...[[key, segmentsNum], , allTuples]) =&gt; {
+    return !allTuples.find(
+      (otherTuple) =&gt; otherTuple[0] !== key &amp;&amp; otherTuple[1] === segmentsNum
+    )
+  })
+
+const uniqueDigitsCharsNum = uniqueNumbersTuples.map(
+  (...[[, segmentsNum]]) =&gt; segmentsNum
+)
+
+class ReadEntry {
+  private readonly digits: string[]
+  private readonly signalPatterns: string[][]
+
+  public constructor(line: string) {
+    const [patterns, digits] = line.split(&quot;|&quot;)
+
+    this.digits = digits.split(&quot; &quot;)
+    this.signalPatterns = patterns
+      .split(&quot; &quot;)
+      .filter((c) =&gt; !!c)
+      .map((pattern) =&gt; pattern.split(&quot;&quot;).sort())
+  }
+
+  public numberOfUniqueDigits() {
+    return this.digits.reduce((...[total, digit]) =&gt; {
+      return total + (uniqueDigitsCharsNum.includes(digit.length) ? 1 : 0)
+    }, 0)
+  }
+
+  public resolveDigitNumber() {
+    const getPatternOfLength = (length: number) =&gt;
+      this.signalPatterns.find((pattern) =&gt; pattern.length === length)
+    const getPatternsOfLength = (length: number) =&gt;
+      this.signalPatterns.filter((pattern) =&gt; pattern.length === length)
+
+    const pattern1 = getPatternOfLength(2)!
+    const pattern7 = getPatternOfLength(3)!
+    const pattern4 = getPatternOfLength(4)!
+    const pattern8 = getPatternOfLength(7)!
+
+    const patternsWith5 = getPatternsOfLength(5)
+    const patternsWith6 = getPatternsOfLength(6)
+
+    // compare 1 and 7 to get: segment A
+    const segmentA = pattern7.find(
+      (pattern7Segment) =&gt; !pattern1.includes(pattern7Segment)
+    )!
+
+    // 2, 3, 5 (5 segments) -&gt; shares 2 with 1 = 3
+    const pattern3 = patternsWith5.find((pattern) =&gt;
+      pattern1.every((pattern1Segment) =&gt; pattern.includes(pattern1Segment))
+    )!
+
+    // remove all segments from 4 in 3, remove segment A = segment g
+    const segmentG = pattern3.find(
+      (pattern3Segment) =&gt;
+        !pattern4.includes(pattern3Segment) &amp;&amp; pattern3Segment !== segmentA
+    )!
+
+    // the segment in 4 but not in 3 -&gt; segment B
+    const segmentB = pattern4.find(
+      (pattern4Segment) =&gt; !pattern3.includes(pattern4Segment)
+    )!
+
+    const pattern5 = patternsWith5.find(
+      (pattern) =&gt; pattern.includes(segmentB) &amp;&amp; pattern !== pattern3
+    )!
+
+    const pattern2 = patternsWith5.find(
+      (pattern) =&gt; pattern !== pattern3 &amp;&amp; pattern !== pattern5
+    )
+
+    // has all from 4 + segment A + segment G -&gt; 9
+    const pattern9 = patternsWith6.find(
+      (pattern) =&gt;
+        pattern4.every((pattern4Segment) =&gt;
+          pattern.includes(pattern4Segment)
+        ) &amp;&amp;
+        pattern.includes(segmentA) &amp;&amp;
+        pattern.includes(segmentG)
+    )
+
+    // compare 0 and 6, the one that has both of 1 -&gt; 0 (and also gives 6)
+    const pattern0 = patternsWith6.find((pattern) =&gt; {
+      return (
+        pattern !== pattern9 &amp;&amp;
+        pattern1.every((pattern1Segment) =&gt; pattern.includes(pattern1Segment))
+      )
+    })
+
+    const pattern6 = patternsWith6.find((pattern) =&gt; {
+      return pattern !== pattern9 &amp;&amp; pattern !== pattern0
+    })
+
+    const patternToDigit = {
+      [pattern1.join(&quot;&quot;)]: 1,
+      [pattern2!.join(&quot;&quot;)]: 2,
+      [pattern3.join(&quot;&quot;)]: 3,
+      [pattern4.join(&quot;&quot;)]: 4,
+      [pattern5.join(&quot;&quot;)]: 5,
+      [pattern6!.join(&quot;&quot;)]: 6,
+      [pattern7.join(&quot;&quot;)]: 7,
+      [pattern8.join(&quot;&quot;)]: 8,
+      [pattern9!.join(&quot;&quot;)]: 9,
+      [pattern0!.join(&quot;&quot;)]: 0,
+    }
+
+    const numberStr = this.digits
+      .map((patternStr) =&gt; patternStr.split(&quot;&quot;).sort().join(&quot;&quot;))
+      .map((patternStr) =&gt; patternToDigit[patternStr])
+      .join(&quot;&quot;)
+
+    return Number(numberStr)
+  }
+}
+
+const transformStrToEntry = (rawInput: Readable | string) =&gt; {
+  return (typeof rawInput === &quot;string&quot; ? of(rawInput) : from(rawInput)).pipe(
+    mergeMap((str: Buffer | string) =&gt; {
+      return str
+        .toString()
+        .split(&quot;\n&quot;)
+        .filter((c) =&gt; !!c)
+        .map((line) =&gt; {
+          return new ReadEntry(line)
+        })
+    })
+  )
+}
+
+const getDigitsNumbers = (str: Readable | string) =&gt; {
+  return new Promise((resolve) =&gt; {
+    let total = 0
+
+    transformStrToEntry(str)
+      .pipe(
+        map((readEntry) =&gt; {
+          total += readEntry.numberOfUniqueDigits()
+        }),
+        last()
+      )
+      .subscribe(() =&gt; {
+        resolve(total)
+      })
+  })
+}
+
+const getSumOfOutputs = (str: Readable | string) =&gt; {
+  return new Promise((resolve) =&gt; {
+    let total = 0
+
+    transformStrToEntry(str)
+      .pipe(
+        map((readEntry) =&gt; {
+          total += readEntry.resolveDigitNumber()
+        }),
+        last()
+      )
+      .subscribe(() =&gt; {
+        resolve(total)
+      })
+  })
+}
+
+/* istanbul ignore next */
+const _test = process.env.NODE_ENV === &quot;test&quot; ? { ReadEntry } : null
+
+export { getDigitsNumbers, getSumOfOutputs, _test }
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Sat, 25 Dec 2021 11:46:34 GMT</p>
+    </body>
+  </html>
+  

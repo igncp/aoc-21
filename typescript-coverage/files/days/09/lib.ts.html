@@ -1,0 +1,163 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/09/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">259</td><td class="">259</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">class Point {
+  public x: number
+  public y: number
+
+  public constructor({ x, y }: { x: number; y: number }) {
+    this.x = x
+    this.y = y
+  }
+
+  public static fromId(id: string): Point {
+    const [x, y] = id.split(&quot;,&quot;).map(Number)
+
+    return new Point({ x, y })
+  }
+
+  public getId(): string {
+    return `${this.x},${this.y}`
+  }
+}
+
+class HeightMap {
+  private readonly rows: number[][]
+
+  public constructor(heightmap: string) {
+    this.rows = heightmap
+      .split(&quot;\n&quot;)
+      .filter((v) =&gt; !!v)
+      .map((line) =&gt; line.split(&quot;&quot;).map(Number))
+  }
+
+  public getTotalRiskLevel() {
+    const { rows } = this
+    const lowPoints = this.getLowPoints()
+
+    return lowPoints.reduce((...[total, lowPoint]) =&gt; {
+      return total + rows[lowPoint.y][lowPoint.x] + 1
+    }, 0)
+  }
+
+  public getBasins() {
+    const lowPoints = this.getLowPoints()
+
+    return lowPoints
+      .map((lowPoint) =&gt; {
+        const basinPoints = new Set&lt;string&gt;()
+        const pointsToAdd = new Set&lt;string&gt;()
+
+        basinPoints.add(lowPoint.getId())
+
+        const isPointFromBasin = ({
+          point,
+          sourcePoint,
+        }: {
+          point: Point
+          sourcePoint: Point
+        }) =&gt; {
+          const pointValue = this.getPointValue(point)
+          const sourcePointValue = this.getPointValue(sourcePoint)
+
+          return (
+            !basinPoints.has(point.getId()) &amp;&amp;
+            pointValue &gt; sourcePointValue &amp;&amp;
+            pointValue !== 9
+          )
+        }
+
+        this.getSurroundingCells(lowPoint).forEach((point) =&gt; {
+          if (isPointFromBasin({ point, sourcePoint: lowPoint })) {
+            pointsToAdd.add(point.getId())
+          }
+        })
+
+        while (pointsToAdd.size &gt; 0) {
+          const pointToCheckId = Array.from(pointsToAdd).pop() as string
+          const pointToAdd = Point.fromId(pointToCheckId)
+
+          basinPoints.add(pointToCheckId)
+          pointsToAdd.delete(pointToCheckId)
+
+          this.getSurroundingCells(pointToAdd).forEach((surroundingPoint) =&gt; {
+            if (
+              isPointFromBasin({
+                point: surroundingPoint,
+                sourcePoint: pointToAdd,
+              })
+            ) {
+              pointsToAdd.add(surroundingPoint.getId())
+            }
+          })
+        }
+
+        return { size: basinPoints.size }
+      })
+      .sort((...[basinA, basinB]) =&gt; basinB.size - basinA.size)
+  }
+
+  private getPointValue(point: Point) {
+    return this.rows[point.y][point.x]
+  }
+
+  private getSurroundingCells(point: Point): Point[] {
+    const { rows } = this
+
+    return ([] as Point[])
+      .concat(point.x === 0 ? [] : [new Point({ x: point.x - 1, y: point.y })])
+      .concat(point.y === 0 ? [] : [new Point({ x: point.x, y: point.y - 1 })])
+      .concat(
+        point.x === rows[0].length - 1
+          ? []
+          : [new Point({ x: point.x + 1, y: point.y })]
+      )
+      .concat(
+        point.y === rows.length - 1
+          ? []
+          : [new Point({ x: point.x, y: point.y + 1 })]
+      )
+  }
+
+  private getLowPoints(): Point[] {
+    const { rows } = this
+
+    return rows.reduce&lt;Point[]&gt;((...[total, row, rowIndex]) =&gt; {
+      return total.concat(
+        row.reduce&lt;Point[]&gt;((...[total2, cell, columnIndex]) =&gt; {
+          const surroundingCellsValues = this.getSurroundingCells(
+            new Point({
+              x: columnIndex,
+              y: rowIndex,
+            })
+          ).map((point) =&gt; this.getPointValue(point))
+
+          const isLowPoint = surroundingCellsValues.every(
+            (surroundingCell) =&gt; surroundingCell &gt; cell
+          )
+
+          return total2.concat(
+            isLowPoint ? [new Point({ x: columnIndex, y: rowIndex })] : []
+          )
+        }, [])
+      )
+    }, [])
+  }
+}
+
+export { HeightMap }
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Sat, 25 Dec 2021 11:46:34 GMT</p>
+    </body>
+  </html>
+  
