@@ -30,6 +30,7 @@
     "eslint-plugin-sort-destructure-keys": "^1.4.0",
     "eslint-plugin-typescript-sort-keys": "^1.8.0",
     "jest": "^27.4.5",
+    "ndb": "^1.1.5",
     "prettier": "^2.5.1",
     "rxjs": "^7.4.0",
     "ts-jest": "^27.1.2",

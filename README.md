@@ -11,8 +11,9 @@ The days with link are completed:
     <td><b><a href="./days/05">05</a></b></td>
   </tr>
   <tr>
-    <td><b><a href="./days/06">06</a></b></td>
-    <td>07</td><td>08</td><td>09</td><td>10</td>
+    <td><b><a href="./days/06">06</a></b></td><td><b><a href="./days/07">07</a></b></td>
+    <td><b><a href="./days/08">08</a></b></td><td><b><a href="./days/09">09</a></b></td>
+    <td><b><a href="./days/10">10</a></b></td>
   </tr>
   <tr>
     <td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>

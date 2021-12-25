@@ -1,4 +1,4 @@
---- Day 4: Giant Squid ---
+# [Day 4: Giant Squid](https://adventofcode.com/2021/day/4)
 
 You're already almost 1.5km (almost a mile) below the surface of the ocean,
 already so deep that you can't see any sunlight. What you can see, however, is
@@ -84,9 +84,9 @@ get the final score, 188 * 24 = 4512.
 To guarantee victory against the giant squid, figure out which board will win
 first. What will your final score be if you choose that board?
 
-To begin, get your puzzle input.
+To begin, [get your puzzle input](./input.txt).
 
---- Part Two ---
+## Part Two
 
 On the other hand, it might be wise to try a different strategy: let the giant
 squid win.

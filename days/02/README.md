@@ -1,4 +1,4 @@
---- Day 2: Dive! ---
+# [Day 2: Dive!](https://adventofcode.com/2021/day/2)
 
 Now, you need to figure out how to pilot this thing.
 
@@ -45,9 +45,9 @@ Calculate the horizontal position and depth you would have after following the
 planned course. What do you get if you multiply your final horizontal position
 by your final depth?
 
-To begin, get your puzzle input
+To begin, [get your puzzle input](./input.txt).
 
---- Part Two ---
+## Part Two
 
 Based on your calculations, the planned course doesn't seem to make any sense.
 You find the submarine manual and discover that the process is actually

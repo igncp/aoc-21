@@ -1,4 +1,4 @@
---- Day 1: Sonar Sweep ---
+# [Day 1: Sonar Sweep](https://adventofcode.com/2021/day/1)
 
 You're minding your own business on a ship at sea when the overboard alarm goes
 off! You rush to see if you can help. Apparently, one of the Elves tripped and
@@ -66,9 +66,9 @@ measurement.
 
 How many measurements are larger than the previous measurement?
 
-To begin, get your puzzle input.
+To begin, [get your puzzle input](./input.txt).
 
---- Part Two ---
+## Part Two
 
 Considering every single measurement isn't as useful as you expected: there's
 just too much noise in the data.
