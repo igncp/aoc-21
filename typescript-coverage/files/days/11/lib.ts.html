@@ -1,0 +1,157 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/11/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">270</td><td class="">270</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">class Point {
+  public x: number
+  public y: number
+
+  public constructor({ x, y }: { x: number; y: number }) {
+    this.x = x
+    this.y = y
+  }
+
+  public static fromId(id: string): Point {
+    const [x, y] = id.split(&quot;,&quot;).map(Number)
+
+    return new Point({ x, y })
+  }
+
+  public getId(): string {
+    return `${this.x},${this.y}`
+  }
+}
+
+class OctopusPond {
+  private readonly octopusesMap: number[][]
+
+  public constructor(mapStr: string) {
+    this.octopusesMap = mapStr
+      .split(&quot;\n&quot;)
+      .filter((v) =&gt; !!v)
+      .map((row) =&gt; row.split(&quot;&quot;).map((c) =&gt; parseInt(c, 10)))
+  }
+
+  public getFlashesCountAfterSteps(stepsNum: number) {
+    const { octopusesMap } = this
+    let flashes = 0
+
+    for (let stepIndex = 0; stepIndex &lt; stepsNum; stepIndex += 1) {
+      const flashesToProcess = new Set&lt;string&gt;()
+      const processedFlashes = new Set&lt;string&gt;()
+
+      octopusesMap.forEach((...[row, rowIndex]) =&gt; {
+        row.forEach((...[, columnIndex]) =&gt; {
+          octopusesMap[rowIndex][columnIndex] += 1
+
+          if (octopusesMap[rowIndex][columnIndex] === 10) {
+            const point = new Point({ x: columnIndex, y: rowIndex })
+
+            flashesToProcess.add(point.getId())
+            octopusesMap[rowIndex][columnIndex] = 0
+          }
+        })
+      })
+
+      while (flashesToProcess.size) {
+        const processedFlash = Array.from(flashesToProcess).pop()!
+        const processedPoint = Point.fromId(processedFlash)
+
+        flashesToProcess.delete(processedFlash)
+        processedFlashes.add(processedFlash)
+
+        this.getAdjancentPoints(processedPoint).forEach((point) =&gt; {
+          if (
+            !processedFlashes.has(point.getId()) &amp;&amp;
+            !flashesToProcess.has(point.getId())
+          ) {
+            octopusesMap[point.y][point.x] += 1
+          }
+
+          if (octopusesMap[point.y][point.x] === 10) {
+            octopusesMap[point.y][point.x] = 0
+
+            const pointId = point.getId()
+
+            if (!processedFlashes.has(pointId)) {
+              flashesToProcess.add(pointId)
+            }
+          }
+        })
+      }
+
+      flashes += processedFlashes.size
+    }
+
+    return flashes
+  }
+
+  public getStepsWhenAllFlash() {
+    let steps = 0
+    const cellsLength = this.octopusesMap.length * this.octopusesMap[0].length
+
+    while (true) {
+      steps += 1
+
+      const flashesCount = this.getFlashesCountAfterSteps(1)
+
+      if (flashesCount === cellsLength) {
+        return steps
+      }
+    }
+  }
+
+  private getAdjancentPoints(point: Point): Point[] {
+    const { octopusesMap: rows } = this
+
+    return ([] as Point[])
+      .concat(
+        point.x === 0 || point.y === 0
+          ? []
+          : [new Point({ x: point.x - 1, y: point.y - 1 })]
+      )
+      .concat(
+        point.x === 0 || point.y === rows.length - 1
+          ? []
+          : [new Point({ x: point.x - 1, y: point.y + 1 })]
+      )
+      .concat(
+        point.x === rows.length - 1 || point.y === 0
+          ? []
+          : [new Point({ x: point.x + 1, y: point.y - 1 })]
+      )
+      .concat(
+        point.x === rows.length - 1 || point.y === rows.length - 1
+          ? []
+          : [new Point({ x: point.x + 1, y: point.y + 1 })]
+      )
+      .concat(point.x === 0 ? [] : [new Point({ x: point.x - 1, y: point.y })])
+      .concat(point.y === 0 ? [] : [new Point({ x: point.x, y: point.y - 1 })])
+      .concat(
+        point.x === rows[0].length - 1
+          ? []
+          : [new Point({ x: point.x + 1, y: point.y })]
+      )
+      .concat(
+        point.y === rows.length - 1
+          ? []
+          : [new Point({ x: point.x, y: point.y + 1 })]
+      )
+  }
+}
+
+export { OctopusPond }
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Sun, 26 Dec 2021 16:53:39 GMT</p>
+    </body>
+  </html>
+  
