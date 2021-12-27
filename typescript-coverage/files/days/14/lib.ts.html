@@ -1,0 +1,157 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/14/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">239</td><td class="">239</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">class Polymer {
+  private chain: string
+  private chainCouples: Record&lt;string, number&gt;
+  private chainLetters: Record&lt;string, number&gt;
+  private readonly rulesMap: Record&lt;string, string[] | undefined&gt;
+
+  public constructor(polymerStr: string) {
+    const [initialChain, growRules] = polymerStr.split(&quot;\n\n&quot;)
+
+    this.chainLetters = {}
+    this.chainCouples = {}
+    this.chain = initialChain.trim()
+
+    initialChain
+      .trim()
+      .split(&quot;&quot;)
+      .forEach((...[chainLetter, chainLetterIndex, chainArr]) =&gt; {
+        this.chainLetters[chainLetter] =
+          (this.chainLetters[chainLetter] || 0) + 1
+
+        const couple = chainLetter + (chainArr[chainLetterIndex + 1] || &quot;&quot;)
+
+        if (couple.length !== 2) {
+          return
+        }
+
+        this.chainCouples[couple] = (this.chainCouples[couple] || 0) + 1
+      })
+
+    this.rulesMap = growRules
+      .split(&quot;\n&quot;)
+      .filter((v) =&gt; !!v)
+      .reduce&lt;Polymer[&quot;rulesMap&quot;]&gt;((...[rulesMap, rule]) =&gt; {
+        const [left, right] = rule.split(&quot; -&gt; &quot;)
+
+        if (rulesMap[left]) {
+          throw new Error(`Duplicate rule: ${left}`)
+        }
+
+        const [coupleLeft, coupleRight] = left.split(&quot;&quot;)
+
+        rulesMap[left] = [right, coupleLeft + right, right + coupleRight]
+
+        return rulesMap
+      }, {})
+  }
+
+  public growNStepsWithoutOrder(steps: number) {
+    this.chain = &quot;&quot;
+
+    const { rulesMap } = this
+
+    for (let step = 0; step &lt; steps; step += 1) {
+      const newChainCouples = { ...this.chainCouples }
+      const newChainLetters = { ...this.chainLetters }
+
+      Object.keys(newChainCouples).forEach((couple) =&gt; {
+        const {
+          chainCouples: { [couple]: couplesNum },
+        } = this
+
+        if (rulesMap[couple]) {
+          const [letter, coupleA, coupleB] = rulesMap[couple]!
+
+          newChainCouples[coupleA] = newChainCouples[coupleA] || 0
+          newChainCouples[coupleB] = newChainCouples[coupleB] || 0
+          newChainLetters[letter] = newChainLetters[letter] || 0
+
+          newChainCouples[coupleA] += couplesNum
+          newChainCouples[coupleB] += couplesNum
+          newChainCouples[couple] -= couplesNum
+          newChainLetters[letter] += couplesNum
+        }
+      })
+
+      this.chainLetters = newChainLetters
+      this.chainCouples = newChainCouples
+    }
+  }
+
+  public getChainLettersDiffWithoutOrder() {
+    const sumsArr = Object.entries(this.chainLetters)
+      .map(([letter, count]) =&gt; ({
+        count,
+        letter,
+      }))
+      .sort((...[sumA, sumB]) =&gt; sumA.count - sumB.count)
+
+    return sumsArr[sumsArr.length - 1].count - sumsArr[0].count
+  }
+
+  public growNSteps(steps: number) {
+    for (let step = 0; step &lt; steps; step += 1) {
+      let { chain: newChain } = this
+
+      for (let chainIndex = 0; chainIndex &lt; newChain.length; chainIndex += 1) {
+        const couple = newChain[chainIndex] + (newChain[chainIndex + 1] || &quot;&quot;)
+
+        const {
+          rulesMap: { [couple]: newItem },
+        } = this
+
+        if (newItem) {
+          newChain =
+            newChain.slice(0, chainIndex + 1) +
+            newItem[0] +
+            newChain.slice(chainIndex + 1)
+          chainIndex += 1
+        }
+      }
+
+      this.chain = newChain
+    }
+  }
+
+  public getChainLettersDiff() {
+    const sumsObj = this.chain
+      .split(&quot;&quot;)
+      .reduce&lt;Record&lt;string, number&gt;&gt;((...[chainSum, letter]) =&gt; {
+        chainSum[letter] = (chainSum[letter] || 0) + 1
+
+        return chainSum
+      }, {})
+    const sumsArr = Object.entries(sumsObj)
+      .map(([letter, count]) =&gt; ({
+        count,
+        letter,
+      }))
+      .sort((...[sumA, sumB]) =&gt; sumA.count - sumB.count)
+
+    return sumsArr[sumsArr.length - 1].count - sumsArr[0].count
+  }
+
+  public getChain() {
+    return this.chain
+  }
+}
+
+export { Polymer }
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Mon, 27 Dec 2021 17:49:16 GMT</p>
+    </body>
+  </html>
+  
