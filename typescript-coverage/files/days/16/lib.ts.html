@@ -1,0 +1,331 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/16/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">368</td><td class="">368</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">enum PacketType {
+  Equal = &quot;equal&quot;,
+  Greater = &quot;greater&quot;,
+  Less = &quot;less&quot;,
+  Literal = &quot;literal&quot;,
+  Maximum = &quot;maximum&quot;,
+  Minimum = &quot;minimum&quot;,
+  Multiply = &quot;multiply&quot;,
+  Sum = &quot;sum&quot;,
+}
+
+const typeIdToTypeValue = [
+  PacketType.Sum,
+  PacketType.Multiply,
+  PacketType.Minimum,
+  PacketType.Maximum,
+  PacketType.Literal,
+  PacketType.Greater,
+  PacketType.Less,
+  PacketType.Equal,
+]
+
+type LiteralPacket = {
+  content: number
+  type: PacketType.Literal
+  version: number
+}
+
+type OperatorPacket = {
+  subpackets: Packet[] // eslint-disable-line @typescript-eslint/no-use-before-define
+  type:
+    | PacketType.Equal
+    | PacketType.Greater
+    | PacketType.Less
+    | PacketType.Maximum
+    | PacketType.Minimum
+    | PacketType.Multiply
+    | PacketType.Sum
+  version: number
+}
+
+type Packet = LiteralPacket | OperatorPacket
+
+const hex2bin = (hexLetter: string) =&gt;
+  parseInt(hexLetter, 16).toString(2).padStart(4, &quot;0&quot;)
+
+class BITSProtocol {
+  private packets: Packet[] = []
+  private readonly bits: number[]
+
+  // @TODO: rxjs input
+  public constructor(input: string) {
+    this.bits = input
+      .split(&quot;&quot;)
+      .filter((v) =&gt; !!v)
+      .reduce&lt;number[]&gt;((...[bits, hexLetter]) =&gt; {
+        const subBits = hex2bin(hexLetter).split(&quot;&quot;).map(Number)
+
+        bits.push(...subBits)
+
+        return bits
+      }, [])
+  }
+
+  public static getRecursiveVersionSum(packets: Packet[]) {
+    const recursiveReduce = (...[sum, packet]: [number, Packet]): number =&gt; {
+      return (
+        sum +
+        packet.version +
+        (&quot;subpackets&quot; in packet ? packet.subpackets : []).reduce(
+          recursiveReduce,
+          0
+        )
+      )
+    }
+
+    return packets.reduce(recursiveReduce, 0)
+  }
+
+  public static evaluatePackets(packets: Packet[]) {
+    const operationResult = (packet: Packet): number =&gt; {
+      switch (packet.type) {
+        case PacketType.Literal:
+          return packet.content
+
+        case PacketType.Sum: {
+          return packet.subpackets.reduce((...[total, subpacket]) =&gt; {
+            return total + operationResult(subpacket)
+          }, 0)
+        }
+
+        case PacketType.Multiply: {
+          return packet.subpackets.reduce((...[total, subpacket]) =&gt; {
+            return total * operationResult(subpacket)
+          }, 1)
+        }
+
+        case PacketType.Minimum: {
+          return packet.subpackets.reduce((...[total, subpacket]) =&gt; {
+            return Math.min(total, operationResult(subpacket))
+          }, Infinity)
+        }
+
+        case PacketType.Maximum: {
+          return packet.subpackets.reduce((...[total, subpacket]) =&gt; {
+            return Math.max(total, operationResult(subpacket))
+          }, 0)
+        }
+
+        case PacketType.Greater: {
+          return operationResult(packet.subpackets[0]) &gt;
+            operationResult(packet.subpackets[1])
+            ? 1
+            : 0
+        }
+
+        case PacketType.Less: {
+          return operationResult(packet.subpackets[0]) &lt;
+            operationResult(packet.subpackets[1])
+            ? 1
+            : 0
+        }
+
+        case PacketType.Equal: {
+          return operationResult(packet.subpackets[0]) ===
+            operationResult(packet.subpackets[1])
+            ? 1
+            : 0
+        }
+
+        default:
+          throw new Error(&quot;Unknown packet type&quot;)
+      }
+    }
+
+    return packets.reduce((...[sum, packet]) =&gt; {
+      return sum + operationResult(packet)
+    }, 0)
+  }
+
+  private static decodePackets({
+    bits,
+  }: {
+    bits: number[]
+    maxPackets: number | null
+  }) {
+    enum State {
+      CollectingSubpackets = &quot;subpackets&quot;,
+      CollectingSubpacketsLength = &quot;subpackets-length&quot;,
+      Head = &quot;head&quot;,
+      LiteralContent = &quot;literal&quot;,
+      Padding = &quot;padding&quot;,
+    }
+
+    enum LengthType {
+      Bits = &quot;bits&quot;,
+      Count = &quot;count&quot;,
+    }
+
+    const packets: Packet[] = []
+
+    let packetPosition = 0
+    let subBits = &quot;&quot;
+    const contentBits: number[] = []
+    let packet: Partial&lt;Packet&gt; = {}
+    let subpacketsLengthBits = 0
+    let subpacketsLength = 0
+    let bitsCount = 0
+    let skipBits = 0
+
+    // eslint-disable-next-line prefer-destructuring
+    let subpacketsLengthType: LengthType = LengthType.Bits
+    // eslint-disable-next-line prefer-destructuring
+    let state: State = State.Head
+
+    const savePacket = () =&gt; {
+      packets.push(packet as Packet)
+      packetPosition = 0
+    }
+
+    bits.forEach((...[bit, bitIndex]) =&gt; {
+      bitsCount += 1
+      subBits += bit
+
+      if (skipBits) {
+        skipBits -= 1
+
+        return
+      }
+
+      switch (true) {
+        case packetPosition === 0: {
+          packet = {}
+          contentBits.length = 0
+          state = State.Head
+          subBits = bit.toString()
+          break
+        }
+
+        case packetPosition === 2: {
+          packet.version = parseInt(subBits, 2)
+          subBits = &quot;&quot;
+          break
+        }
+
+        case packetPosition === 5: {
+          const typeId = parseInt(subBits, 2)
+
+          packet.type = typeIdToTypeValue[typeId]
+          subBits = &quot;&quot;
+          break
+        }
+
+        case packetPosition === 6: {
+          if (packet.type === PacketType.Literal) {
+            state = State.LiteralContent
+          } else {
+            if (subBits === &quot;0&quot;) {
+              subpacketsLengthType = LengthType.Bits
+              subpacketsLengthBits = 15
+            } else {
+              subpacketsLengthType = LengthType.Count
+              subpacketsLengthBits = 11
+            }
+
+            state = State.CollectingSubpacketsLength
+            subBits = &quot;&quot;
+          }
+
+          break
+        }
+      }
+
+      if (
+        state === State.CollectingSubpacketsLength &amp;&amp;
+        subBits.length === subpacketsLengthBits
+      ) {
+        subpacketsLength = parseInt(subBits, 2)
+
+        if (subpacketsLengthType === LengthType.Bits) {
+          state = State.CollectingSubpackets
+          subBits = &quot;&quot;
+        } else {
+          const { bitsCount: newBitsCount, packets: subpackets } =
+            BITSProtocol.decodePackets({
+              bits: bits.slice(bitIndex + 1, bits.length),
+              maxPackets: subpacketsLength,
+            })
+
+          ;(packet as OperatorPacket).subpackets = subpackets
+          savePacket()
+          skipBits = newBitsCount
+
+          return
+        }
+      }
+
+      if (
+        state === State.CollectingSubpackets &amp;&amp;
+        subBits.length === subpacketsLength
+      ) {
+        // eslint-disable-next-line @typescript-eslint/no-extra-semi
+        ;(packet as OperatorPacket).subpackets = BITSProtocol.decodePackets({
+          bits: subBits.split(&quot;&quot;).map(Number),
+          maxPackets: null,
+        }).packets
+        savePacket()
+
+        return
+      }
+
+      if (state === State.LiteralContent &amp;&amp; subBits.length === 5) {
+        const [shouldContinue, ...newContentBits] = subBits
+          .split(&quot;&quot;)
+          .map(Number)
+
+        contentBits.push(...newContentBits)
+
+        subBits = &quot;&quot;
+
+        if (shouldContinue === 0) {
+          // eslint-disable-next-line @typescript-eslint/no-extra-semi
+          ;(packet as LiteralPacket).content = parseInt(contentBits.join(&quot;&quot;), 2)
+          savePacket()
+
+          return
+        }
+      }
+
+      packetPosition += 1
+    })
+
+    return {
+      bitsCount,
+      packets,
+    }
+  }
+
+  public decodeAllPackets() {
+    const { bits } = this
+
+    this.packets = BITSProtocol.decodePackets({
+      bits,
+      maxPackets: null,
+    }).packets
+  }
+
+  public getPackets() {
+    return this.packets.slice()
+  }
+}
+
+export { BITSProtocol, PacketType, Packet }
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Thu, 30 Dec 2021 21:32:19 GMT</p>
+    </body>
+  </html>
+  

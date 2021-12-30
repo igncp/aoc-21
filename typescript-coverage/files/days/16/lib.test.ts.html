@@ -1,0 +1,168 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.test.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/16/lib.test.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">129</td><td class="">129</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">import { BITSProtocol, Packet, PacketType } from &quot;./lib&quot;
+
+const firstExample = [
+  &quot;D2FE28&quot;,
+  [
+    {
+      content: 2021,
+      type: PacketType.Literal,
+      version: 6,
+    },
+  ],
+  6,
+]
+
+const secondExample = [
+  &quot;38006F45291200&quot;,
+  [
+    {
+      subpackets: [
+        {
+          content: 10,
+          type: PacketType.Literal,
+          version: 6,
+        },
+        {
+          content: 20,
+          type: PacketType.Literal,
+          version: 2,
+        },
+      ],
+      type: PacketType.Less,
+      version: 1,
+    },
+  ],
+  9,
+]
+
+const thirdExample = [
+  &quot;EE00D40C823060&quot;,
+  [
+    {
+      subpackets: [
+        {
+          content: 1,
+          type: &quot;literal&quot;,
+          version: 2,
+        },
+        {
+          content: 2,
+          type: &quot;literal&quot;,
+          version: 4,
+        },
+        {
+          content: 3,
+          type: &quot;literal&quot;,
+          version: 1,
+        },
+      ],
+      type: PacketType.Maximum,
+      version: 7,
+    },
+  ],
+  14,
+]
+
+const fourthExample = [
+  &quot;8A004A801A8002F478&quot;,
+  [
+    {
+      subpackets: [
+        {
+          subpackets: [
+            {
+              subpackets: [
+                {
+                  content: 15,
+                  type: PacketType.Literal,
+                  version: 6,
+                },
+              ],
+              type: PacketType.Minimum,
+              version: 5,
+            },
+          ],
+          type: PacketType.Minimum,
+          version: 1,
+        },
+      ],
+      type: PacketType.Minimum,
+      version: 4,
+    },
+  ],
+  16,
+]
+
+describe(&quot;getPackets&quot;, () =&gt; {
+  it.each([firstExample, secondExample, thirdExample, fourthExample] as Array&lt;
+    [string, Packet[], number]
+  &gt;)(&quot;returns the expected values&quot;, (...[packetStr, packets, versionSum]) =&gt; {
+    const bitsProtocol = new BITSProtocol(packetStr)
+
+    bitsProtocol.decodeAllPackets()
+
+    const packetsResult = bitsProtocol.getPackets()
+
+    expect(packetsResult).toEqual(packets)
+    expect(BITSProtocol.getRecursiveVersionSum(packetsResult)).toEqual(
+      versionSum
+    )
+  })
+})
+
+describe(&quot;getRecursiveVersionSum&quot;, () =&gt; {
+  it.each([
+    [&quot;620080001611562C8802118E34&quot;, 12],
+    [&quot;C0015000016115A2E0802F182340&quot;, 23],
+    [&quot;A0016C880162017C3686B18A3D4780&quot;, 31],
+  ])(&quot;returns the expected values: %#&quot;, (...[packetStr, versionSum]) =&gt; {
+    const bitsProtocol = new BITSProtocol(packetStr)
+
+    bitsProtocol.decodeAllPackets()
+
+    const packetsResult = bitsProtocol.getPackets()
+
+    expect(BITSProtocol.getRecursiveVersionSum(packetsResult)).toEqual(
+      versionSum
+    )
+  })
+})
+
+describe(&quot;evaluatePackets&quot;, () =&gt; {
+  it.each([
+    [&quot;C200B40A82&quot;, 3],
+    [&quot;04005AC33890&quot;, 54],
+    [&quot;880086C3E88112&quot;, 7],
+    [&quot;CE00C43D881120&quot;, 9],
+    [&quot;D8005AC2A8F0&quot;, 1],
+    [&quot;F600BC2D8F&quot;, 0],
+    [&quot;9C005AC2F8F0&quot;, 0],
+    // [&quot;9C0141080250320F1802104A08&quot;, 1], // @TODO
+  ])(&quot;returns the expected values: %#&quot;, (...[packetStr, evaluateResult]) =&gt; {
+    const bitsProtocol = new BITSProtocol(packetStr)
+
+    bitsProtocol.decodeAllPackets()
+
+    const packetsResult = bitsProtocol.getPackets()
+
+    expect(BITSProtocol.evaluatePackets(packetsResult)).toEqual(evaluateResult)
+  })
+})
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Thu, 30 Dec 2021 21:32:19 GMT</p>
+    </body>
+  </html>
+  
