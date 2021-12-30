@@ -11,7 +11,10 @@
 <link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
     </head>
     <body>
-    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/16/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">368</td><td class="">368</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">enum PacketType {
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/16/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">413</td><td class="">413</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">import { Readable } from &quot;node:stream&quot;
+import { Observable, from, mergeMap, of, reduce } from &quot;rxjs&quot;
+
+enum PacketType {
   Equal = &quot;equal&quot;,
   Greater = &quot;greater&quot;,
   Less = &quot;less&quot;,
@@ -54,40 +57,43 @@ type OperatorPacket = {
 
 type Packet = LiteralPacket | OperatorPacket
 
+enum State {
+  CollectingSubpackets = &quot;subpackets&quot;,
+  CollectingSubpacketsLength = &quot;subpackets-length&quot;,
+  Head = &quot;head&quot;,
+  LiteralContent = &quot;literal&quot;,
+}
+
+enum LengthType {
+  Bits = &quot;bits&quot;,
+  Count = &quot;count&quot;,
+}
+
 const hex2bin = (hexLetter: string) =&gt;
   parseInt(hexLetter, 16).toString(2).padStart(4, &quot;0&quot;)
 
 class BITSProtocol {
   private packets: Packet[] = []
-  private readonly bits: number[]
+  private readonly bits: Observable&lt;number&gt;
 
-  // @TODO: rxjs input
-  public constructor(input: string) {
-    this.bits = input
-      .split(&quot;&quot;)
-      .filter((v) =&gt; !!v)
-      .reduce&lt;number[]&gt;((...[bits, hexLetter]) =&gt; {
-        const subBits = hex2bin(hexLetter).split(&quot;&quot;).map(Number)
+  public constructor(rawInput: Readable | string) {
+    this.bits = (
+      typeof rawInput === &quot;string&quot; ? of(rawInput) : from(rawInput)
+    ).pipe(
+      mergeMap((str: Buffer | string) =&gt; {
+        return str
+          .toString()
+          .split(&quot;&quot;)
+          .filter((v) =&gt; !!v)
+          .reduce&lt;number[]&gt;((...[bits, hexLetter]) =&gt; {
+            const subBits = hex2bin(hexLetter).split(&quot;&quot;).map(Number)
 
-        bits.push(...subBits)
+            bits.push(...subBits)
 
-        return bits
-      }, [])
-  }
-
-  public static getRecursiveVersionSum(packets: Packet[]) {
-    const recursiveReduce = (...[sum, packet]: [number, Packet]): number =&gt; {
-      return (
-        sum +
-        packet.version +
-        (&quot;subpackets&quot; in packet ? packet.subpackets : []).reduce(
-          recursiveReduce,
-          0
-        )
-      )
-    }
-
-    return packets.reduce(recursiveReduce, 0)
+            return bits
+          }, [])
+      })
+    )
   }
 
   public static evaluatePackets(packets: Packet[]) {
@@ -153,38 +159,23 @@ class BITSProtocol {
 
   private static decodePackets({
     bits,
+    maxPackets,
   }: {
     bits: number[]
     maxPackets: number | null
   }) {
-    enum State {
-      CollectingSubpackets = &quot;subpackets&quot;,
-      CollectingSubpacketsLength = &quot;subpackets-length&quot;,
-      Head = &quot;head&quot;,
-      LiteralContent = &quot;literal&quot;,
-      Padding = &quot;padding&quot;,
-    }
-
-    enum LengthType {
-      Bits = &quot;bits&quot;,
-      Count = &quot;count&quot;,
-    }
-
     const packets: Packet[] = []
+    const literalContentBits: number[] = []
 
     let packetPosition = 0
     let subBits = &quot;&quot;
-    const contentBits: number[] = []
     let packet: Partial&lt;Packet&gt; = {}
-    let subpacketsLengthBits = 0
     let subpacketsLength = 0
     let bitsCount = 0
     let skipBits = 0
 
-    // eslint-disable-next-line prefer-destructuring
-    let subpacketsLengthType: LengthType = LengthType.Bits
-    // eslint-disable-next-line prefer-destructuring
-    let state: State = State.Head
+    let { Head: state }: { Head: State } = State
+    let { Bits: lengthType }: { Bits: LengthType } = LengthType
 
     const savePacket = () =&gt; {
       packets.push(packet as Packet)
@@ -192,8 +183,9 @@ class BITSProtocol {
     }
 
     bits.forEach((...[bit, bitIndex]) =&gt; {
-      bitsCount += 1
-      subBits += bit
+      if (typeof maxPackets === &quot;number&quot; &amp;&amp; maxPackets === packets.length) {
+        return
+      }
 
       if (skipBits) {
         skipBits -= 1
@@ -201,10 +193,13 @@ class BITSProtocol {
         return
       }
 
+      bitsCount += 1
+      subBits += bit
+
       switch (true) {
         case packetPosition === 0: {
           packet = {}
-          contentBits.length = 0
+          literalContentBits.length = 0
           state = State.Head
           subBits = bit.toString()
           break
@@ -229,11 +224,9 @@ class BITSProtocol {
             state = State.LiteralContent
           } else {
             if (subBits === &quot;0&quot;) {
-              subpacketsLengthType = LengthType.Bits
-              subpacketsLengthBits = 15
+              lengthType = LengthType.Bits
             } else {
-              subpacketsLengthType = LengthType.Count
-              subpacketsLengthBits = 11
+              lengthType = LengthType.Count
             }
 
             state = State.CollectingSubpacketsLength
@@ -246,11 +239,11 @@ class BITSProtocol {
 
       if (
         state === State.CollectingSubpacketsLength &amp;&amp;
-        subBits.length === subpacketsLengthBits
+        subBits.length === (lengthType === LengthType.Bits ? 15 : 11)
       ) {
         subpacketsLength = parseInt(subBits, 2)
 
-        if (subpacketsLengthType === LengthType.Bits) {
+        if (lengthType === LengthType.Bits) {
           state = State.CollectingSubpackets
           subBits = &quot;&quot;
         } else {
@@ -262,7 +255,9 @@ class BITSProtocol {
 
           ;(packet as OperatorPacket).subpackets = subpackets
           savePacket()
+
           skipBits = newBitsCount
+          bitsCount += newBitsCount
 
           return
         }
@@ -272,11 +267,13 @@ class BITSProtocol {
         state === State.CollectingSubpackets &amp;&amp;
         subBits.length === subpacketsLength
       ) {
-        // eslint-disable-next-line @typescript-eslint/no-extra-semi
-        ;(packet as OperatorPacket).subpackets = BITSProtocol.decodePackets({
+        const { packets: subpackets } = BITSProtocol.decodePackets({
           bits: subBits.split(&quot;&quot;).map(Number),
           maxPackets: null,
-        }).packets
+        })
+
+        ;(packet as OperatorPacket).subpackets = subpackets
+
         savePacket()
 
         return
@@ -287,13 +284,15 @@ class BITSProtocol {
           .split(&quot;&quot;)
           .map(Number)
 
-        contentBits.push(...newContentBits)
+        literalContentBits.push(...newContentBits)
 
         subBits = &quot;&quot;
 
         if (shouldContinue === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-extra-semi
-          ;(packet as LiteralPacket).content = parseInt(contentBits.join(&quot;&quot;), 2)
+          ;(packet as LiteralPacket).content = parseInt(
+            literalContentBits.join(&quot;&quot;),
+            2
+          )
           savePacket()
 
           return
@@ -312,20 +311,51 @@ class BITSProtocol {
   public decodeAllPackets() {
     const { bits } = this
 
-    this.packets = BITSProtocol.decodePackets({
-      bits,
-      maxPackets: null,
-    }).packets
+    return new Promise&lt;void&gt;((resolve) =&gt; {
+      bits
+        .pipe(
+          reduce((...[collectedBits, bit]) =&gt; {
+            return collectedBits.concat([bit])
+          }, [] as number[])
+        )
+        .subscribe((allBits) =&gt; {
+          this.packets = BITSProtocol.decodePackets({
+            bits: allBits,
+            maxPackets: null,
+          }).packets
+
+          resolve()
+        })
+    })
+  }
+
+  public evaluatePackets() {
+    return BITSProtocol.evaluatePackets(this.packets)
   }
 
   public getPackets() {
     return this.packets.slice()
   }
+
+  public getRecursiveVersionSum() {
+    const recursiveReduce = (...[sum, packet]: [number, Packet]): number =&gt; {
+      return (
+        sum +
+        packet.version +
+        (&quot;subpackets&quot; in packet ? packet.subpackets : []).reduce(
+          recursiveReduce,
+          0
+        )
+      )
+    }
+
+    return this.packets.reduce(recursiveReduce, 0)
+  }
 }
 
 export { BITSProtocol, PacketType, Packet }
 </textarea><pre id="annotations" style="display:none">[]</pre></div>
-    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Thu, 30 Dec 2021 21:32:19 GMT</p>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Thu, 30 Dec 2021 23:07:44 GMT</p>
     </body>
   </html>
   
