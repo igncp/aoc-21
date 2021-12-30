@@ -96,18 +96,19 @@ const fourthExample = [
 describe("getPackets", () => {
   it.each([firstExample, secondExample, thirdExample, fourthExample] as Array<
     [string, Packet[], number]
-  >)("returns the expected values", (...[packetStr, packets, versionSum]) => {
-    const bitsProtocol = new BITSProtocol(packetStr)
+  >)(
+    "returns the expected values",
+    async (...[packetStr, packets, versionSum]) => {
+      const bitsProtocol = new BITSProtocol(packetStr)
 
-    bitsProtocol.decodeAllPackets()
+      await bitsProtocol.decodeAllPackets()
 
-    const packetsResult = bitsProtocol.getPackets()
+      const packetsResult = bitsProtocol.getPackets()
 
-    expect(packetsResult).toEqual(packets)
-    expect(BITSProtocol.getRecursiveVersionSum(packetsResult)).toEqual(
-      versionSum
-    )
-  })
+      expect(packetsResult).toEqual(packets)
+      expect(bitsProtocol.getRecursiveVersionSum()).toEqual(versionSum)
+    }
+  )
 })
 
 describe("getRecursiveVersionSum", () => {
@@ -115,16 +116,12 @@ describe("getRecursiveVersionSum", () => {
     ["620080001611562C8802118E34", 12],
     ["C0015000016115A2E0802F182340", 23],
     ["A0016C880162017C3686B18A3D4780", 31],
-  ])("returns the expected values: %#", (...[packetStr, versionSum]) => {
+  ])("returns the expected values: %#", async (...[packetStr, versionSum]) => {
     const bitsProtocol = new BITSProtocol(packetStr)
 
-    bitsProtocol.decodeAllPackets()
+    await bitsProtocol.decodeAllPackets()
 
-    const packetsResult = bitsProtocol.getPackets()
-
-    expect(BITSProtocol.getRecursiveVersionSum(packetsResult)).toEqual(
-      versionSum
-    )
+    expect(bitsProtocol.getRecursiveVersionSum()).toEqual(versionSum)
   })
 })
 
@@ -137,14 +134,28 @@ describe("evaluatePackets", () => {
     ["D8005AC2A8F0", 1],
     ["F600BC2D8F", 0],
     ["9C005AC2F8F0", 0],
-    // ["9C0141080250320F1802104A08", 1], // @TODO
-  ])("returns the expected values: %#", (...[packetStr, evaluateResult]) => {
-    const bitsProtocol = new BITSProtocol(packetStr)
+    ["9C0141080250320F1802104A08", 1],
+  ])(
+    "returns the expected values: %#",
+    async (...[packetStr, evaluateResult]) => {
+      const bitsProtocol = new BITSProtocol(packetStr)
 
-    bitsProtocol.decodeAllPackets()
+      await bitsProtocol.decodeAllPackets()
 
-    const packetsResult = bitsProtocol.getPackets()
+      expect(bitsProtocol.evaluatePackets()).toEqual(evaluateResult)
+    }
+  )
 
-    expect(BITSProtocol.evaluatePackets(packetsResult)).toEqual(evaluateResult)
+  it("fails on unexpected type", () => {
+    expect(() =>
+      BITSProtocol.evaluatePackets([
+        {
+          subpackets: [],
+          // @ts-expect-error
+          type: "unexpected",
+          version: 0,
+        },
+      ])
+    ).toThrowError("Unknown packet type")
   })
 })

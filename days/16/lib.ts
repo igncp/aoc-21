@@ -1,3 +1,6 @@
+import { Readable } from "node:stream"
+import { Observable, from, mergeMap, of, reduce } from "rxjs"
+
 enum PacketType {
   Equal = "equal",
   Greater = "greater",
@@ -41,40 +44,43 @@ type OperatorPacket = {
 
 type Packet = LiteralPacket | OperatorPacket
 
+enum State {
+  CollectingSubpackets = "subpackets",
+  CollectingSubpacketsLength = "subpackets-length",
+  Head = "head",
+  LiteralContent = "literal",
+}
+
+enum LengthType {
+  Bits = "bits",
+  Count = "count",
+}
+
 const hex2bin = (hexLetter: string) =>
   parseInt(hexLetter, 16).toString(2).padStart(4, "0")
 
 class BITSProtocol {
   private packets: Packet[] = []
-  private readonly bits: number[]
+  private readonly bits: Observable<number>
 
-  // @TODO: rxjs input
-  public constructor(input: string) {
-    this.bits = input
-      .split("")
-      .filter((v) => !!v)
-      .reduce<number[]>((...[bits, hexLetter]) => {
-        const subBits = hex2bin(hexLetter).split("").map(Number)
+  public constructor(rawInput: Readable | string) {
+    this.bits = (
+      typeof rawInput === "string" ? of(rawInput) : from(rawInput)
+    ).pipe(
+      mergeMap((str: Buffer | string) => {
+        return str
+          .toString()
+          .split("")
+          .filter((v) => !!v)
+          .reduce<number[]>((...[bits, hexLetter]) => {
+            const subBits = hex2bin(hexLetter).split("").map(Number)
 
-        bits.push(...subBits)
+            bits.push(...subBits)
 
-        return bits
-      }, [])
-  }
-
-  public static getRecursiveVersionSum(packets: Packet[]) {
-    const recursiveReduce = (...[sum, packet]: [number, Packet]): number => {
-      return (
-        sum +
-        packet.version +
-        ("subpackets" in packet ? packet.subpackets : []).reduce(
-          recursiveReduce,
-          0
-        )
-      )
-    }
-
-    return packets.reduce(recursiveReduce, 0)
+            return bits
+          }, [])
+      })
+    )
   }
 
   public static evaluatePackets(packets: Packet[]) {
@@ -140,38 +146,23 @@ class BITSProtocol {
 
   private static decodePackets({
     bits,
+    maxPackets,
   }: {
     bits: number[]
     maxPackets: number | null
   }) {
-    enum State {
-      CollectingSubpackets = "subpackets",
-      CollectingSubpacketsLength = "subpackets-length",
-      Head = "head",
-      LiteralContent = "literal",
-      Padding = "padding",
-    }
-
-    enum LengthType {
-      Bits = "bits",
-      Count = "count",
-    }
-
     const packets: Packet[] = []
+    const literalContentBits: number[] = []
 
     let packetPosition = 0
     let subBits = ""
-    const contentBits: number[] = []
     let packet: Partial<Packet> = {}
-    let subpacketsLengthBits = 0
     let subpacketsLength = 0
     let bitsCount = 0
     let skipBits = 0
 
-    // eslint-disable-next-line prefer-destructuring
-    let subpacketsLengthType: LengthType = LengthType.Bits
-    // eslint-disable-next-line prefer-destructuring
-    let state: State = State.Head
+    let { Head: state }: { Head: State } = State
+    let { Bits: lengthType }: { Bits: LengthType } = LengthType
 
     const savePacket = () => {
       packets.push(packet as Packet)
@@ -179,8 +170,9 @@ class BITSProtocol {
     }
 
     bits.forEach((...[bit, bitIndex]) => {
-      bitsCount += 1
-      subBits += bit
+      if (typeof maxPackets === "number" && maxPackets === packets.length) {
+        return
+      }
 
       if (skipBits) {
         skipBits -= 1
@@ -188,10 +180,13 @@ class BITSProtocol {
         return
       }
 
+      bitsCount += 1
+      subBits += bit
+
       switch (true) {
         case packetPosition === 0: {
           packet = {}
-          contentBits.length = 0
+          literalContentBits.length = 0
           state = State.Head
           subBits = bit.toString()
           break
@@ -216,11 +211,9 @@ class BITSProtocol {
             state = State.LiteralContent
           } else {
             if (subBits === "0") {
-              subpacketsLengthType = LengthType.Bits
-              subpacketsLengthBits = 15
+              lengthType = LengthType.Bits
             } else {
-              subpacketsLengthType = LengthType.Count
-              subpacketsLengthBits = 11
+              lengthType = LengthType.Count
             }
 
             state = State.CollectingSubpacketsLength
@@ -233,11 +226,11 @@ class BITSProtocol {
 
       if (
         state === State.CollectingSubpacketsLength &&
-        subBits.length === subpacketsLengthBits
+        subBits.length === (lengthType === LengthType.Bits ? 15 : 11)
       ) {
         subpacketsLength = parseInt(subBits, 2)
 
-        if (subpacketsLengthType === LengthType.Bits) {
+        if (lengthType === LengthType.Bits) {
           state = State.CollectingSubpackets
           subBits = ""
         } else {
@@ -249,7 +242,9 @@ class BITSProtocol {
 
           ;(packet as OperatorPacket).subpackets = subpackets
           savePacket()
+
           skipBits = newBitsCount
+          bitsCount += newBitsCount
 
           return
         }
@@ -259,11 +254,13 @@ class BITSProtocol {
         state === State.CollectingSubpackets &&
         subBits.length === subpacketsLength
       ) {
-        // eslint-disable-next-line @typescript-eslint/no-extra-semi
-        ;(packet as OperatorPacket).subpackets = BITSProtocol.decodePackets({
+        const { packets: subpackets } = BITSProtocol.decodePackets({
           bits: subBits.split("").map(Number),
           maxPackets: null,
-        }).packets
+        })
+
+        ;(packet as OperatorPacket).subpackets = subpackets
+
         savePacket()
 
         return
@@ -274,13 +271,15 @@ class BITSProtocol {
           .split("")
           .map(Number)
 
-        contentBits.push(...newContentBits)
+        literalContentBits.push(...newContentBits)
 
         subBits = ""
 
         if (shouldContinue === 0) {
-          // eslint-disable-next-line @typescript-eslint/no-extra-semi
-          ;(packet as LiteralPacket).content = parseInt(contentBits.join(""), 2)
+          ;(packet as LiteralPacket).content = parseInt(
+            literalContentBits.join(""),
+            2
+          )
           savePacket()
 
           return
@@ -299,14 +298,45 @@ class BITSProtocol {
   public decodeAllPackets() {
     const { bits } = this
 
-    this.packets = BITSProtocol.decodePackets({
-      bits,
-      maxPackets: null,
-    }).packets
+    return new Promise<void>((resolve) => {
+      bits
+        .pipe(
+          reduce((...[collectedBits, bit]) => {
+            return collectedBits.concat([bit])
+          }, [] as number[])
+        )
+        .subscribe((allBits) => {
+          this.packets = BITSProtocol.decodePackets({
+            bits: allBits,
+            maxPackets: null,
+          }).packets
+
+          resolve()
+        })
+    })
+  }
+
+  public evaluatePackets() {
+    return BITSProtocol.evaluatePackets(this.packets)
   }
 
   public getPackets() {
     return this.packets.slice()
+  }
+
+  public getRecursiveVersionSum() {
+    const recursiveReduce = (...[sum, packet]: [number, Packet]): number => {
+      return (
+        sum +
+        packet.version +
+        ("subpackets" in packet ? packet.subpackets : []).reduce(
+          recursiveReduce,
+          0
+        )
+      )
+    }
+
+    return this.packets.reduce(recursiveReduce, 0)
   }
 }
 

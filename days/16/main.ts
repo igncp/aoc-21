@@ -2,15 +2,22 @@ import fs from "fs"
 
 import { BITSProtocol } from "./lib"
 
-const firstPart = () => {
-  const setupStr = fs.readFileSync(`${__dirname}/input.txt`, "utf-8")
+const firstPart = async () => {
+  const setupStr = fs.createReadStream(`${__dirname}/input.txt`, "utf-8")
   const bitsProtocol = new BITSProtocol(setupStr)
 
-  bitsProtocol.decodeAllPackets()
+  await bitsProtocol.decodeAllPackets()
 
-  const packetsResult = bitsProtocol.getPackets()
-
-  return BITSProtocol.getRecursiveVersionSum(packetsResult)
+  return bitsProtocol.getRecursiveVersionSum()
 }
 
-export { firstPart }
+const secondPart = async () => {
+  const setupStr = fs.createReadStream(`${__dirname}/input.txt`, "utf-8")
+  const bitsProtocol = new BITSProtocol(setupStr)
+
+  await bitsProtocol.decodeAllPackets()
+
+  return bitsProtocol.evaluatePackets()
+}
+
+export { firstPart, secondPart }

@@ -7,6 +7,7 @@ const disabledRules = {
   "@typescript-eslint/explicit-module-boundary-types": 0,
   "@typescript-eslint/no-confusing-void-expression": 0,
   "@typescript-eslint/no-empty-function": 0,
+  "@typescript-eslint/no-extra-semi": 0,
   "@typescript-eslint/no-invalid-this": 0,
   "@typescript-eslint/no-non-null-assertion": 0,
   "@typescript-eslint/no-unsafe-assignment": 0,

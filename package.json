@@ -10,6 +10,7 @@
     "lint": "npm run lint:ts && npm run ts-prune",
     "lint:ts": "eslint --ext .js --ext .ts --ext .tsx .",
     "test": "jest days --coverage",
+    "test:debug": " ndb $(npm bin)/jest --watch --no-cache --runInBand",
     "ts-coverage": "typescript-coverage-report --ignore-files '**/*.json'",
     "ts-prune": "sh ./scripts/ts_prune.sh"
   },

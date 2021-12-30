@@ -1,5 +1,9 @@
-import { firstPart } from "./main"
+import { firstPart, secondPart } from "./main"
 
-test("First part", () => {
-  expect(firstPart()).toEqual(1014)
+test("First part", async () => {
+  expect(await firstPart()).toEqual(1014)
+})
+
+test("Second part", async () => {
+  expect(await secondPart()).toEqual(1_922_490_999_789)
 })
