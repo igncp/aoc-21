@@ -68,7 +68,7 @@ Here is the process of finding the reduced result of
 - after explode:  [[[[0,7],4],[15,[0,13]]],[1,1]]
 - after split:    [[[[0,7],4],[[7,8],[0,13]]],[1,1]]
 - after split:    [[[[0,7],4],[[7,8],[0,[6,7]]]],[1,1]]
-0 after explode:  [[[[0,7],4],[[7,8],[6,0]]],[8,1]]
+- after explode:  [[[[0,7],4],[[7,8],[6,0]]],[8,1]]
 
 Once no reduce actions apply, the snailfish number that remains is the actual
 result of the addition operation: [[[[0,7],4],[[7,8],[6,0]]],[8,1]].
