@@ -11,31 +11,30 @@
 <link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
     </head>
     <body>
-    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/18/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">433</td><td class="">433</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">type RecursiveArray&lt;T&gt; = Array&lt;RecursiveArray&lt;T&gt;&gt; | T
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/18/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">727</td><td class="">727</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">type RecursiveArray&lt;T&gt; = Array&lt;RecursiveArray&lt;T&gt;&gt; | T
 type RecursiveNumArray = RecursiveArray&lt;number&gt;
-type TreeNode = {
-  children?: Array&lt;TreeNode[&quot;id&quot;]&gt;
+
+type BaseNode = {
   depth: number
   id: number
   leaf?: number
-  parent: TreeNode[&quot;id&quot;] | null
+  parent: BaseNode[&quot;id&quot;] | null
+  path: number[]
 }
-// @TODO: Combine types
-type TreeNodeFull = {
-  depth: number
-  id: number
-  parent: TreeNodeFull[&quot;id&quot;] | null
-} &amp; (
-  | {
-      children: TreeNodeFull[]
-    }
-  | {
-      leaf: number
-    }
-)
+type TreeNode = BaseNode &amp; {
+  children?: Array&lt;TreeNode[&quot;id&quot;]&gt;
+}
+type TreeNodeFull = BaseNode &amp; {
+  children?: TreeNodeFull[]
+}
 
 type Tree = {
   [key: TreeNode[&quot;id&quot;]]: TreeNode
+}
+
+enum Side {
+  Left = &quot;left&quot;,
+  Right = &quot;right&quot;,
 }
 
 class SnailfishNumber {
@@ -48,6 +47,52 @@ class SnailfishNumber {
         : numDefinition
   }
 
+  public static sumAll(list: string): SnailfishNumber {
+    const snailfishList = list
+      .split(&quot;\n&quot;)
+      .filter((line) =&gt; !!line.trim())
+      .map((line) =&gt; new SnailfishNumber(line))
+
+    return snailfishList
+      .slice(1)
+      .reduce((...[accNumberSnailfish, snailfishNumber]) =&gt; {
+        const newNumber = accNumberSnailfish.add(snailfishNumber)
+
+        newNumber.reduce()
+
+        return newNumber
+      }, snailfishList[0])
+  }
+
+  public static getHighestMagnitude(list: string): number {
+    const snailfishList = list
+      .split(&quot;\n&quot;)
+      .filter((line) =&gt; !!line.trim())
+      .map((line) =&gt; new SnailfishNumber(line))
+
+    let maxMagnitude = 0
+
+    snailfishList.forEach((...[numberA, numberAIndex]) =&gt; {
+      snailfishList.forEach((...[numberB, numberBIndex]) =&gt; {
+        if (numberAIndex === numberBIndex) {
+          return
+        }
+
+        const newNumber = numberA.add(numberB)
+
+        newNumber.reduce()
+
+        const newMagnitude = newNumber.getMagnitude()
+
+        if (maxMagnitude &lt; newMagnitude) {
+          maxMagnitude = newMagnitude
+        }
+      })
+    })
+
+    return maxMagnitude
+  }
+
   private static fromString(numDefinition: string): Tree {
     const numsArray: RecursiveNumArray = JSON.parse(numDefinition)
     let currentId = 0
@@ -56,10 +101,12 @@ class SnailfishNumber {
       depth,
       nodeArr,
       parentId,
+      path,
     }: {
       depth: number
       nodeArr: RecursiveNumArray | number
       parentId: TreeNode[&quot;id&quot;] | null
+      path: number[]
     }): TreeNodeFull =&gt; {
       currentId += 1
 
@@ -69,13 +116,15 @@ class SnailfishNumber {
         depth,
         id: currentId,
         parent: parentId,
+        path,
         ...(Array.isArray(nodeArr)
           ? {
-              children: nodeArr.map((subItem) =&gt;
+              children: nodeArr.map((...[subItem, subItemIndex]) =&gt;
                 recursiveFn({
                   depth: depth + 1,
                   nodeArr: subItem,
                   parentId: id,
+                  path: path.concat(subItemIndex),
                 })
               ),
             }
@@ -87,16 +136,20 @@ class SnailfishNumber {
       depth: 0,
       nodeArr: numsArray,
       parentId: null,
+      path: [],
     })
 
     const recursiveReduce = (...[tree, nodeFull]: [Tree, TreeNodeFull]) =&gt; {
-      const node =
+      const node: TreeNode =
         &quot;children&quot; in nodeFull
-          ? { ...nodeFull, children: nodeFull.children.map((c) =&gt; c.id) }
-          : { ...nodeFull }
+          ? ({
+              ...nodeFull,
+              children: nodeFull.children!.map((c) =&gt; c.id),
+            } as TreeNode)
+          : ({ ...nodeFull } as TreeNode)
 
       if (&quot;children&quot; in nodeFull) {
-        nodeFull.children.forEach((c) =&gt; {
+        nodeFull.children!.forEach((c) =&gt; {
           recursiveReduce(tree, c)
         })
       }
@@ -112,18 +165,39 @@ class SnailfishNumber {
   }
 
   public add(otherNum: SnailfishNumber): SnailfishNumber {
-    const maxId = this.getMaxId() + 2
+    const maxId = this.getMaxId() + 2 // +1 will be the new root
     const rootNode = this.getRootNode()
     const rootNodeOther = otherNum.getRootNode()
+    const thisTree = Object.keys(this.tree).reduce(
+      (...[thisTreeAcc, thisTreeKey]: [Tree, string]) =&gt; {
+        const numKey = Number(thisTreeKey)
+
+        const newNode = {
+          ...this.tree[numKey],
+        }
+
+        thisTreeAcc[numKey] = newNode
+        newNode.path = newNode.path.slice()
+        newNode.path.unshift(0)
+
+        return thisTreeAcc
+      },
+      {}
+    )
     const otherTree = Object.keys(otherNum.tree).reduce&lt;Tree&gt;(
       (...[otherTreeAcc, otherTreeKey]: [Tree, string]) =&gt; {
         const numKey = Number(otherTreeKey)
 
+        const newId = numKey + maxId
         const newNode = {
           ...otherNum.tree[numKey],
+          id: newId,
         }
 
-        otherTreeAcc[numKey + maxId] = newNode
+        otherTreeAcc[newId] = newNode
+        newNode.path = newNode.path.slice()
+        newNode.path.unshift(1)
+        newNode.parent = newNode.parent ? newNode.parent + maxId : null
 
         if (&quot;children&quot; in newNode) {
           newNode.children = newNode.children!.map((c) =&gt; c + maxId)
@@ -134,14 +208,14 @@ class SnailfishNumber {
       {}
     )
 
-    const newTree = { ...this.tree, ...otherTree }
+    const newTree = { ...thisTree, ...otherTree }
 
     Object.keys(newTree).forEach((newTreeKey) =&gt; {
       const numKey = Number(newTreeKey)
 
       newTree[numKey] = {
         ...newTree[numKey],
-        depth: (newTree[numKey].depth += 1),
+        depth: newTree[numKey].depth + 1,
       }
     })
 
@@ -153,12 +227,35 @@ class SnailfishNumber {
       depth: 0,
       id: newRootId,
       parent: null,
+      path: [],
     }
 
     newTree[rootNode.id] = { ...newTree[rootNode.id], parent: newRootId }
     newTree[newRootOtherId] = { ...newTree[newRootOtherId], parent: newRootId }
 
     return new SnailfishNumber(newTree)
+  }
+
+  public getMagnitude() {
+    const rootNode = this.getRootNode()
+
+    const recursiveReduce = (node: TreeNode): number =&gt; {
+      if (&quot;children&quot; in node) {
+        return node.children!.reduce((...[subAcc, childId, childIndex]) =&gt; {
+          const {
+            tree: { [childId]: child },
+          } = this
+
+          const childVal = recursiveReduce(child)
+
+          return subAcc + (childIndex === 0 ? childVal * 3 : childVal * 2)
+        }, 0)
+      }
+
+      return node.leaf!
+    }
+
+    return recursiveReduce(rootNode)
   }
 
   public explode() {
@@ -168,7 +265,7 @@ class SnailfishNumber {
 
         return this.tree[numKey].depth &gt;= 4 &amp;&amp; !!this.tree[numKey].children
       })
-      .sort((...[keyA, keyB]) =&gt; Number(keyA) - Number(keyB))[0]
+      .sort(this.sortByPath)[0]
 
     if (!nodeId) {
       return false
@@ -205,14 +302,49 @@ class SnailfishNumber {
     return true
   }
 
-  public printTreeNode(nodeId: number) {
-    const {
-      tree: { [nodeId]: node },
-    } = this
-    const nodeStr = this.toStringNode(node)
+  public split() {
+    const maxId = this.getMaxId()
+    const nodeId = Object.keys(this.tree)
+      .filter((treeKey) =&gt; {
+        const numKey = Number(treeKey)
 
-    // eslint-disable-next-line no-console
-    console.log(&quot;lib.test.ts: nodeStr&quot;, nodeStr)
+        return &quot;leaf&quot; in this.tree[numKey] &amp;&amp; this.tree[numKey].leaf! &gt;= 10
+      })
+      .sort(this.sortByPath)[0]
+
+    if (!nodeId) {
+      return false
+    }
+
+    const nodeIdNum = Number(nodeId)
+    const {
+      tree: { [nodeIdNum]: node },
+    } = this
+    const halfLeaf = node.leaf! / 2
+    const [newLeft, newRight] = [Math.floor(halfLeaf), Math.ceil(halfLeaf)]
+
+    delete node.leaf
+
+    const nodeLeft = {
+      depth: node.depth + 1,
+      id: maxId + 1,
+      leaf: newLeft,
+      parent: nodeIdNum,
+      path: node.path.concat([0]),
+    }
+    const nodeRight = {
+      depth: node.depth + 1,
+      id: maxId + 2,
+      leaf: newRight,
+      parent: nodeIdNum,
+      path: node.path.concat([1]),
+    }
+
+    node.children = [nodeLeft.id, nodeRight.id]
+    this.tree[nodeLeft.id] = nodeLeft
+    this.tree[nodeRight.id] = nodeRight
+
+    return true
   }
 
   public toString(): string {
@@ -221,12 +353,30 @@ class SnailfishNumber {
     return this.toStringNode(rootNode)
   }
 
+  public reduce(maxStep = -1) {
+    let didChange = true
+    let steps = 0
+
+    while (didChange &amp;&amp; (maxStep &lt; 0 || steps &lt; maxStep)) {
+      steps += 1
+
+      didChange = false
+      didChange = this.explode()
+
+      if (didChange) {
+        continue
+      }
+
+      didChange = this.split()
+    }
+  }
+
   private getLeftNode(nodeId: number) {
-    return this.getSideNode({ nodeId, side: &quot;left&quot; })
+    return this.getSideNode({ nodeId, side: Side.Left })
   }
 
   private getRightNode(nodeId: number) {
-    return this.getSideNode({ nodeId, side: &quot;right&quot; })
+    return this.getSideNode({ nodeId, side: Side.Right })
   }
 
   private getSideNode({
@@ -234,16 +384,17 @@ class SnailfishNumber {
     side,
   }: {
     nodeId: number
-    side: &quot;left&quot; | &quot;right&quot;
+    side: Side
   }): TreeNode | null {
     let {
       tree: { [nodeId]: node },
     } = this
-    let parent = node.parent ? this.tree[node.parent] : null
+    // eslint-disable-next-line prefer-destructuring
+    let parent: TreeNode | null = this.tree[node.parent!]
 
     while (
       parent &amp;&amp;
-      parent.children!.indexOf(node.id) !== (side === &quot;left&quot; ? 1 : 0)
+      parent.children!.indexOf(node.id) !== (side === Side.Left ? 1 : 0)
     ) {
       node = this.tree[parent.id]
       parent = node.parent ? this.tree[node.parent] : null
@@ -253,10 +404,13 @@ class SnailfishNumber {
       return null
     }
 
-    node = this.tree[parent.id]
+    const { [side === Side.Left ? 0 : 1]: newNodeId } =
+      this.tree[parent.id].children!
+
+    node = this.tree[Number(newNodeId)]
 
     while (node.children) {
-      node = this.tree[node.children[side === &quot;left&quot; ? 0 : 1]]
+      node = this.tree[node.children[side === Side.Left ? 1 : 0]]
     }
 
     return node
@@ -293,11 +447,33 @@ class SnailfishNumber {
   private getMaxId() {
     return Math.max(...Object.keys(this.tree).map(Number))
   }
+
+  private readonly sortByPath = (...[nodeIdA, nodeIdB]: [string, string]) =&gt; {
+    const {
+      tree: { [Number(nodeIdA)]: nodeA, [Number(nodeIdB)]: nodeB },
+    } = this
+
+    for (let pathAIndex = 0; pathAIndex &lt; nodeA.path.length; pathAIndex += 1) {
+      const {
+        path: { [pathAIndex]: pathAElement },
+      } = nodeA
+      const {
+        path: { [pathAIndex]: pathBElement },
+      } = nodeB
+
+      if (pathAElement !== pathBElement) {
+        return pathAElement - pathBElement
+      }
+    }
+
+    /* istanbul ignore next */
+    return nodeA.path.length - nodeB.path.length
+  }
 }
 
 export { SnailfishNumber }
 </textarea><pre id="annotations" style="display:none">[]</pre></div>
-    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Fri, 07 Jan 2022 00:17:55 GMT</p>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Sat, 08 Jan 2022 12:29:50 GMT</p>
     </body>
   </html>
   

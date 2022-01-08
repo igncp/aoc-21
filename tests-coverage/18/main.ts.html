@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for 15/main.ts</title>
+    <title>Code coverage report for 18/main.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../prettify.css" />
     <link rel="stylesheet" href="../base.css" />
@@ -19,13 +19,13 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">15</a> main.ts</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">18</a> main.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>13/13</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>12/12</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
@@ -81,10 +81,7 @@
 <a name='L16'></a><a href='#L16'>16</a>
 <a name='L17'></a><a href='#L17'>17</a>
 <a name='L18'></a><a href='#L18'>18</a>
-<a name='L19'></a><a href='#L19'>19</a>
-<a name='L20'></a><a href='#L20'>20</a>
-<a name='L21'></a><a href='#L21'>21</a>
-<a name='L22'></a><a href='#L22'>22</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L19'></a><a href='#L19'>19</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -96,9 +93,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -107,22 +101,19 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import fs from "fs"
 &nbsp;
-import { ChitonMap } from "./lib"
+import { SnailfishNumber } from "./lib"
 &nbsp;
 const firstPart = () =&gt; {
   const setupStr = fs.readFileSync(`${__dirname}/input.txt`, "utf-8")
-  const chitonMap = new ChitonMap(setupStr)
+  const finalNumber = SnailfishNumber.sumAll(setupStr)
 &nbsp;
-  return chitonMap.getLowestRisk()
+  return finalNumber.getMagnitude()
 }
 &nbsp;
 const secondPart = () =&gt; {
   const setupStr = fs.readFileSync(`${__dirname}/input.txt`, "utf-8")
-  const chitonMap = new ChitonMap(setupStr)
 &nbsp;
-  chitonMap.expandCostsArr()
-&nbsp;
-  return chitonMap.getLowestRisk()
+  return SnailfishNumber.getHighestMagnitude(setupStr)
 }
 &nbsp;
 export { firstPart, secondPart }
