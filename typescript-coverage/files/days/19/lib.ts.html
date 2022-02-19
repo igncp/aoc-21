@@ -1,0 +1,216 @@
+
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>lib.ts</title>
+      <link href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css" type="text/css" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/mode/javascript/javascript.min.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.2/codemirror.min.css" type="text/css" rel="stylesheet">
+<script src="../../../assets/source-file.js" type="text/javascript" charset="utf-8"></script>
+<link href="../../../assets/source-file.css" type="text/css" rel="stylesheet">
+    </head>
+    <body>
+    <div style="margin-top:3em" class="ui container"><h1 class="ui header"><a href="../../../index.html">TypeScript coverage report</a></h1><table style="margin-top:2em" class="ui celled table"><thead class=""><tr class=""><th class="">Filename</th><th class="">Percent</th><th class="">Threshold</th><th class="">Total</th><th class="">Covered</th><th class="">Uncovered</th></tr></thead><tbody class=""><tr class="positive"><td class="">days/19/lib.ts</td><td class="">100.00%</td><td class="">99%</td><td class="">251</td><td class="">251</td><td class="">0</td></tr></tbody></table><textarea id="editor" readonly="" style="margin-top:3em">type Point = [number, number, number]
+type OverlappingPoint = { pointA: Point; pointB: Point }
+
+class ScannerReport {
+  private readonly distances: Map&lt;string, number&gt;
+  private readonly points: Point[]
+
+  public constructor() {
+    this.distances = new Map()
+    this.points = []
+  }
+
+  public addPoint(point: Point): void {
+    this.points.push(point)
+  }
+
+  public getPoints() {
+    return this.points.slice()
+  }
+
+  public setDistances() {
+    const { points } = this
+
+    for (let pointAIdx = 0; pointAIdx &lt; points.length; pointAIdx += 1) {
+      const { [pointAIdx]: pointA } = points
+
+      for (
+        let pointBIdx = pointAIdx + 1;
+        pointBIdx &lt; points.length;
+        pointBIdx += 1
+      ) {
+        const { [pointBIdx]: pointB } = points
+
+        this.distances.set(
+          `${pointAIdx},${pointBIdx}`,
+          Math.abs(pointA[0] - pointB[0]) +
+            Math.abs(pointA[1] - pointB[1]) +
+            Math.abs(pointA[2] - pointB[2])
+        )
+      }
+    }
+  }
+
+  public getPointDistances(pointAIndex: number) {
+    const { distances } = this
+
+    return this.points
+      .map((...[, pointBIndex]) =&gt; {
+        if (pointAIndex === pointBIndex) {
+          return 0
+        }
+
+        const sortedIndexes =
+          pointAIndex &lt; pointBIndex
+            ? [pointAIndex, pointBIndex]
+            : [pointBIndex, pointAIndex]
+
+        return distances.get(`${sortedIndexes[0]},${sortedIndexes[1]}`)
+      })
+      .filter((distance) =&gt; distance !== 0)
+  }
+}
+
+class ScannersReport {
+  private readonly reports: ScannerReport[]
+
+  public constructor(reportString: string) {
+    const parsedReports: ScannerReport[] = []
+
+    reportString.split(&quot;\n&quot;).forEach((line) =&gt; {
+      if (!line.trim()) {
+        return
+      }
+
+      if (line.startsWith(&quot;---&quot;)) {
+        const scannerReport: ScannerReport = new ScannerReport()
+
+        parsedReports.push(scannerReport)
+
+        return
+      }
+
+      const { [parsedReports.length - 1]: lastReport } = parsedReports
+
+      if (!lastReport as unknown) {
+        throw new Error(&quot;Invalid report string&quot;)
+      }
+
+      const point = line
+        .split(&quot;,&quot;)
+        .map((pointCoord) =&gt; parseInt(pointCoord, 10)) as Point
+
+      lastReport.addPoint(point)
+    })
+
+    parsedReports.forEach((report) =&gt; {
+      report.setDistances()
+    })
+
+    this.reports = parsedReports
+  }
+
+  public getOverlappingPoints(reportsIndexPairs: [number, number]) {
+    const [reportA, reportB] = [
+      this.reports[reportsIndexPairs[0]],
+      this.reports[reportsIndexPairs[1]],
+    ]
+
+    const overlappingPoints: OverlappingPoint[] = []
+
+    reportA.getPoints().forEach((...[pointA, pointIndexA]) =&gt; {
+      const distancesA = reportA.getPointDistances(pointIndexA)
+
+      reportB.getPoints().forEach((...[pointB, pointIndexB]) =&gt; {
+        const distancesB = reportB.getPointDistances(pointIndexB)
+
+        const commonDistances = distancesA.reduce&lt;number&gt;(
+          (...[acc, distanceA]) =&gt; {
+            return acc + (distancesB.includes(distanceA) ? 1 : 0)
+          },
+          0
+        )
+
+        // At least 12 points need to overlap between two scanners
+        if (commonDistances &gt;= 11) {
+          overlappingPoints.push({ pointA, pointB })
+        }
+      })
+    })
+
+    return overlappingPoints
+  }
+
+  public getBeaconsNumber() {
+    const { reports } = this
+    const reportsMatches: Array&lt;{
+      from: number
+      points: OverlappingPoint[]
+      to: number
+    }&gt; = []
+
+    const matchedReports: number[] = [0]
+    let matchedReportsPointer = -1
+
+    while (true) {
+      matchedReportsPointer += 1
+
+      const { [matchedReportsPointer]: currentReportIndex } = matchedReports
+
+      reports.forEach((...[, reportIndex]) =&gt; {
+        if (
+          reportIndex === currentReportIndex ||
+          matchedReports.includes(reportIndex)
+        ) {
+          return
+        }
+
+        const overlappingPoints = this.getOverlappingPoints([
+          currentReportIndex,
+          reportIndex,
+        ])
+
+        if (overlappingPoints.length &gt; 11) {
+          matchedReports.push(reportIndex)
+          reportsMatches.push({
+            from: currentReportIndex,
+            points: overlappingPoints,
+            to: reportIndex,
+          })
+        }
+      })
+
+      if (
+        matchedReports.length === reports.length ||
+        matchedReportsPointer === reports.length // this case would be an error
+      ) {
+        break
+      }
+    }
+
+    if (matchedReports.length &lt; reports.length) {
+      throw new Error(&quot;Invalid report string&quot;)
+    }
+
+    return reportsMatches.reduce((...[total, reportMatch]) =&gt; {
+      // TODO: transform points and filter out the ones already counted
+      const { length: newPoints } = reports[reportMatch.to].getPoints()
+
+      return total + newPoints
+    }, reports[0].getPoints().length)
+  }
+
+  public toJSON(): ScannerReport[] {
+    return this.reports
+  }
+}
+
+export { ScannersReport }
+</textarea><pre id="annotations" style="display:none">[]</pre></div>
+    <p class="footer-text">TypeScript Coverage Report generated by <a href="https://github.com/plantain-00/type-coverage">type-coverage</a> and <a href="https://github.com/alexcanessa/typescript-coverage-report">typescript-coverage-report</a> at Sat, 19 Feb 2022 18:27:16 GMT</p>
+    </body>
+  </html>
+  
